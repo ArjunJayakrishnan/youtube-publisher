@@ -1,0 +1,61 @@
+name: Publish Video to YouTube
+
+# Manually triggered only -- you review the built video first, then run this
+# from the Actions tab (or your phone browser) once you're happy with it.
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "The week/release tag to publish (e.g. 2026-10-04), from the video-factory repo"
+        required: true
+      privacy_status:
+        description: "YouTube privacy setting for the upload"
+        required: false
+        default: "private"
+        type: choice
+        options:
+          - private
+          - unlisted
+          - public
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out this repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install GitHub CLI release-download support
+        run: gh --version # gh is preinstalled on GitHub-hosted runners
+
+      - name: Download the built video, thumbnail, and metadata from video-factory
+        env:
+          GH_TOKEN: ${{ secrets.VIDEO_FACTORY_PAT }}
+        run: |
+          mkdir -p downloaded
+          gh release download "${{ github.event.inputs.release_tag }}" \
+            --repo "${{ vars.VIDEO_FACTORY_REPO }}" \
+            --dir downloaded
+
+      - name: Upload to YouTube
+        env:
+          YOUTUBE_CLIENT_ID: ${{ secrets.YOUTUBE_CLIENT_ID }}
+          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+          YOUTUBE_REFRESH_TOKEN: ${{ secrets.YOUTUBE_REFRESH_TOKEN }}
+          PRIVACY_STATUS: ${{ github.event.inputs.privacy_status }}
+        run: |
+          python scripts/upload_to_youtube.py \
+            --video downloaded/final_video.mp4 \
+            --thumbnail downloaded/thumbnail.jpg \
+            --metadata downloaded/metadata.json \
+            --privacy "$PRIVACY_STATUS"
