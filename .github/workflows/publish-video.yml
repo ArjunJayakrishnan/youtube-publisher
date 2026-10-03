@@ -55,7 +55,7 @@ jobs:
           PRIVACY_STATUS: ${{ github.event.inputs.privacy_status }}
         run: |
           python scripts/upload_to_youtube.py \
-            --video downloaded/final_video.mp4 \
+            --video downloaded/preview_TEST.mp4 \
             --thumbnail downloaded/thumbnail.jpg \
             --metadata downloaded/metadata.json \
             --privacy "$PRIVACY_STATUS"
